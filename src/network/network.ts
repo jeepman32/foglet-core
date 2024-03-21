@@ -1,32 +1,6 @@
-/*
-MIT License
-
-Copyright (c) 2016-2017 Grall Arnaud
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-*/
-'use strict'
-
-// Communication
-const Communication = require('./communication/communication.js')
-// Signaling
-const Signaling = require('./signaling/signaling.js')
+import AbstractNetwork from "./abstract/abstract-network";
+import Communication from "./communication/communication";
+import Signaling from "./signaling/signaling";
 
 /**
  * Network represent a network layer with three main components:
@@ -36,6 +10,11 @@ const Signaling = require('./signaling/signaling.js')
  * @author Grall Arnaud (folkvir)
  */
 class Network {
+  readonly network: AbstractNetwork;
+  readonly protocol: string;
+  readonly signaling: Signaling;
+  readonly communication: Communication;
+
   /**
    * Constructor
    * @param  {AbstractNetwork} network - The network layer
@@ -44,43 +23,15 @@ class Network {
    * @param  {string} signaling.room - Name of the room in which the application run
    * @param  {string} protocol - Name of the protocol run by the network
    */
-  constructor (network, signaling, protocol) {
-    this._network = network
-    this._protocol = protocol
-    this._signaling = new Signaling(network, signaling)
-    this._communication = new Communication(network, protocol)
-  }
-
-  /**
-   * Get the protocol of the network
-   * @return {[type]} [description]
-   */
-  get protocol () {
-    return this._protocol
-  }
-
-  /**
-   * The network component
-   * @return {AbstractNetwork} The network component
-   */
-  get network () {
-    return this._network
-  }
-
-  /**
-   * The signaling component
-   * @return {Signaling} The signaling component
-   */
-  get signaling () {
-    return this._signaling
-  }
-
-  /**
-   * The communication component
-   * @return {Communication} The communication component
-   */
-  get communication () {
-    return this._communication
+  constructor(
+    network: AbstractNetwork,
+    signaling: { address: string; room: string },
+    protocol: string,
+  ) {
+    this.network = network;
+    this.protocol = protocol;
+    this.signaling = new Signaling(network, signaling);
+    this.communication = new Communication(network, protocol);
   }
 
   /**
@@ -91,9 +42,9 @@ class Network {
    * @param  {Number} [priority=0] - (optional) The middleware priority
    * @return {void}
    */
-  use (middleware, priority = 0) {
-    this.communication.use(middleware, priority)
+  use(middleware: { in: function; out: function }, priority: number = 0): void {
+    this.communication.use(middleware, priority);
   }
 }
 
-module.exports = Network
+export default Network;

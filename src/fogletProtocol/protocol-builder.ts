@@ -1,31 +1,7 @@
-/*
-MIT License
-
-Copyright (c) 2016-2017 Grall Arnaud
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-*/
-'use strict'
-
-const FogletProtocol = require('./foglet-protocol.js')
-const ServiceBuilder = require('./builders/service-builder.js')
-const InitBuilder = require('./builders/init-builder.js')
+import FogletProtocol from "./foglet-protocol";
+import ServiceBuilder from "./builders/service-builder";
+import InitBuilder from "./builders/init-builder";
+import Foglet from "../foglet";
 
 /**
  * Create a function that evaluates a tagged template to create a new subclass of {@link FogletProtocol}
@@ -50,30 +26,36 @@ const InitBuilder = require('./builders/init-builder.js')
  *  }}
  *  `;
  *
- * module.exports = ExampleUnicastProtocol;
+ * export default ExampleUnicastProtocol;
  */
-function define (protocolName) {
-  return function (services, ...callbacks) {
-    let builder
-    const protocolClass = class extends FogletProtocol {
-      constructor (foglet, ...args) {
-        super(protocolName, foglet, ...args)
-      }
-    }
-    // clean services names before building
-    services.map(str => str.trim())
-      .filter(str => str.length > 0)
-      .forEach((name, index) => {
-        if (name === 'init' || name === 'constructor') {
-          builder = new InitBuilder(callbacks[index])
-        } else {
-          builder = new ServiceBuilder(name)
-          callbacks[index](builder)
-        }
-        builder.apply(protocolClass)
-      })
-    return protocolClass
-  }
-}
+const define =
+  (protocolName: string) =>
+  (
+    services: any[],
+    ...callbacks: { [x: string]: (arg0: ServiceBuilder) => void }
+  ) => {
+    let builder;
 
-module.exports = define
+    const protocolClass = class extends FogletProtocol {
+      constructor(foglet: Foglet, ...args: any) {
+        super(protocolName, foglet, ...args);
+      }
+    };
+
+    // clean services names before building
+    services
+      .map((str: string) => str.trim())
+      .filter((str: string | any[]) => str.length > 0)
+      .forEach((name: string, index: string | number) => {
+        if (name === "init" || name === "constructor") {
+          builder = new InitBuilder(callbacks[index]);
+        } else {
+          builder = new ServiceBuilder(name);
+          callbacks[index](builder);
+        }
+        builder.apply(protocolClass);
+      });
+    return protocolClass;
+  };
+
+export default define;

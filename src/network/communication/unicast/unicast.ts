@@ -1,7 +1,5 @@
-'use strict'
-
-const AbstractUnicast = require('./../abstract/abstract-unicast.js')
-const UnicastDefinition = require('unicast-definition')
+import AbstractUnicast from "./../abstract/abstract-unicast";
+import UnicastDefinition from "unicast-definition";
 
 /**
  * Unicast represent the base implementation of an unicast protocol for the foglet library.
@@ -14,12 +12,14 @@ class Unicast extends AbstractUnicast {
    * @param  {AbstractNetwork} source - The source RPS/overlay
    * @param  {string} protocol - The name of the unicast protocol
    */
-  constructor (source, protocol) {
-    super(source, protocol)
-    this._unicast = new UnicastDefinition(this._source.rps, {pid: this._protocol})
+  constructor(source, protocol) {
+    super(source, protocol);
+    this._unicast = new UnicastDefinition(this._source.rps, {
+      pid: this._protocol,
+    });
     this._unicast.on(this._protocol, (id, message) => {
-      this._receive(id, message)
-    })
+      this.receive(id, message);
+    });
   }
 
   /**
@@ -29,8 +29,13 @@ class Unicast extends AbstractUnicast {
    * @param  {*} message - The message to send
    * @return {Promise} A Promise fulfilled when the message is sent
    */
-  send (id, message) {
-    return this._unicast.emit(this._protocol, id, this._source.outviewId, message)
+  send(id, message) {
+    return this._unicast.emit(
+      this._protocol,
+      id,
+      this._source.outviewId,
+      message,
+    );
   }
 
   /**
@@ -39,10 +44,10 @@ class Unicast extends AbstractUnicast {
    * @param  {Object} message - Message to send
    * @return {Promise} A Promise fulfilled when all message have been sent
    */
-  sendMultiple (ids = [], message) {
+  sendMultiple(ids = [], message) {
     return ids.reduce((prev, peerID) => {
-      return prev.then(() => this.send(peerID, message))
-    }, Promise.resolve())
+      return prev.then(() => this.send(peerID, message));
+    }, Promise.resolve());
   }
 
   /**
@@ -51,9 +56,9 @@ class Unicast extends AbstractUnicast {
    * @param  {*} message - The message received
    * @return {void}
    */
-  _receive (id, message) {
-    this.emit('receive', id, message)
+  receive(id, message) {
+    this.emit("receive", id, message);
   }
 }
 
-module.exports = Unicast
+export default Unicast;

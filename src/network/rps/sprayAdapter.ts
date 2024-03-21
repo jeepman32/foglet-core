@@ -1,32 +1,6 @@
-/*
-MIT License
-
-Copyright (c) 2016 Grall Arnaud
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the 'Software'), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-*/
-'use strict'
-
-const AbstractNetwork = require('./../abstract/abstract-network.js')
-// const lremove = require('lodash/remove');
-const Spray = require('spray-wrtc')
-const lmerge = require('lodash.merge')
+import AbstractNetwork from "./../abstract/abstract-network";
+import Spray from "spray-wrtc";
+import lmerge from "lodash.merge";
 
 /**
  * SprayAdapter adapts the usage of a Spray RPS in the foglet library.
@@ -35,14 +9,20 @@ const lmerge = require('lodash.merge')
  * @author Grall Arnaud (Folkvir)
  */
 class SprayAdapter extends AbstractNetwork {
-  constructor (options) {
-    super(lmerge({
-      webrtc: { // add WebRTC options
-        trickle: true, // enable trickle (divide offers in multiple small offers sent by pieces)
-        config: {iceServers: []} // define iceServers in non local instance
-      },
-      origins: '*'
-    }, options))
+  constructor(options) {
+    super(
+      lmerge(
+        {
+          webrtc: {
+            // add WebRTC options
+            trickle: true, // enable trickle (divide offers in multiple small offers sent by pieces)
+            config: { iceServers: [] }, // define iceServers in non local instance
+          },
+          origins: "*",
+        },
+        options,
+      ),
+    );
   }
 
   /**
@@ -50,26 +30,26 @@ class SprayAdapter extends AbstractNetwork {
    * @param {Object} options - Options used to build the RPS
    * @return {Spray} The Spray network
    */
-  _buildRPS (options) {
+  buildRPS(options) {
     // if webrtc options specified: create object config for Spray
-    const sprayOptions = lmerge({config: options.webrtc}, options)
-    return new Spray(sprayOptions)
+    const sprayOptions = lmerge({ config: options.webrtc }, options);
+    return new Spray(sprayOptions);
   }
 
   /**
    * The in-view ID of the peer in the network
    * @return {string} The in-view ID of the peer
    */
-  get inviewId () {
-    return this._rps.getInviewId()
+  get inViewId() {
+    return this.rps.getInviewId();
   }
 
   /**
    * The out-view ID of the peer in the network
    * @return {string} The out-view ID of the peer
    */
-  get outviewId () {
-    return this._rps.getOutviewId()
+  get outViewId() {
+    return this.rps.getOutviewId();
   }
 
   /**
@@ -77,8 +57,8 @@ class SprayAdapter extends AbstractNetwork {
    * @param  {Boolean} transform - transform IDs into reachable ids to used for send messages => (peer) => peer-O
    * @return {String[]} Set of IDs for all available neighbours
    */
-  getReachableNeighbours (transform = true) {
-    return this._rps.uniqNeighbours(transform)
+  getReachableNeighbours(transform = true) {
+    return this.rps.uniqNeighbours(transform);
   }
 
   /**
@@ -86,20 +66,20 @@ class SprayAdapter extends AbstractNetwork {
    * @param  {Integer} limit - Max number of neighbours to look for
    * @return {String[]} Set of IDs for all available neighbours
    */
-  getNeighbours (limit = undefined) {
-    return this._rps.getPeers(limit)
+  getNeighbours(limit = undefined) {
+    return this.rps.getPeers(limit);
   }
 
   /**
    * Get the IDs of all available neighbours
    * @return {String[]} Set of IDs for all available neighbours
    */
-  getArcs () {
-    const arcs = this._rps.neighbours()
-    const i = arcs.inview.map(entry => entry.peer)
-    const o = arcs.inview.map(entry => entry.peer)
-    return i.concat(o)
+  getArcs() {
+    const arcs = this.rps.neighbours();
+    const i = arcs.inview.map((entry) => entry.peer);
+    const o = arcs.inview.map((entry) => entry.peer);
+    return i.concat(o);
   }
 }
 
-module.exports = SprayAdapter
+export default SprayAdapter;

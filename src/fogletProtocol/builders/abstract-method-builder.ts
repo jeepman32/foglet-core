@@ -1,29 +1,4 @@
-/*
-MIT License
-
-Copyright (c) 2016-2017 Grall Arnaud
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-*/
-'use strict'
-
-const utils = require('../utils.js')
+import utils from "../utils";
 
 /**
  * Apply hooks on a message in reduce fashion.
@@ -32,16 +7,18 @@ const utils = require('../utils.js')
  * @param  {function[]} hooks - Set of hooks
  * @return {function} A function that apply the set of hooks to a message
  */
-function reduceHooks (hooks) {
-  return msg => {
-    let tmp
+const reduceHooks =
+  (hooks: function[]): function =>
+  (msg) => {
+    let tmp;
     return hooks.reduce((prev, hook) => {
-      tmp = hook(prev)
-      if (tmp === undefined || tmp === null) { return prev }
-      return tmp
-    }, msg)
-  }
-}
+      tmp = hook(prev);
+      if (tmp === undefined || tmp === null) {
+        return prev;
+      }
+      return tmp;
+    }, msg);
+  };
 
 /**
  * An AbstractBuilder defines an abstract class capable of builiding a service method.
@@ -53,38 +30,41 @@ function reduceHooks (hooks) {
  * @author Thomas Minier
  */
 class AbstractMethodBuilder {
+  private serviceName: string;
+  private camelCasedName: string;
+  private capitalizedCamelCase: string;
   /**
    * Constructor
    * @param  {string} serviceName - The name of the service
    */
-  constructor (serviceName) {
-    this._serviceName = serviceName
-    this._camelCasedName = utils.camelCase(this._serviceName)
-    this._capitalizedCamelCase = utils.capitalize(this._camelCasedName)
+  constructor(serviceName: string) {
+    this.serviceName = serviceName;
+    this.camelCasedName = utils.camelCase(this.serviceName);
+    this.capitalizedCamelCase = utils.capitalize(this.camelCasedName);
   }
 
-  get methodName () {
-    return this._camelCasedName
+  get methodName() {
+    return this.camelCasedName;
   }
 
-  get handlerName () {
-    return `_${this._camelCasedName}`
+  get handlerName() {
+    return `_${this.camelCasedName}`;
   }
 
-  get beforeSendName () {
-    return `_beforeSend${this._capitalizedCamelCase}`
+  get beforeSendName() {
+    return `_beforeSend${this.capitalizedCamelCase}`;
   }
 
-  get beforeReceiveName () {
-    return `_beforeReceive${this._capitalizedCamelCase}`
+  get beforeReceiveName() {
+    return `_beforeReceive${this.capitalizedCamelCase}`;
   }
 
-  get afterSendName () {
-    return `_afterSend${this._capitalizedCamelCase}`
+  get afterSendName() {
+    return `_afterSend${this.capitalizedCamelCase}`;
   }
 
-  get afterReceiveName () {
-    return `_afterReceive${this._capitalizedCamelCase}`
+  get afterReceiveName() {
+    return `_afterReceive${this.capitalizedCamelCase}`;
   }
 
   /**
@@ -92,8 +72,10 @@ class AbstractMethodBuilder {
    * @param  {function} protocol - The protocol class
    * @return {void}
    */
-  buildService (protocol) {
-    throw new Error('A valid Builder must implement a valid buildService method')
+  buildService(protocol: function): void {
+    throw new Error(
+      "A valid Builder must implement a valid buildService method",
+    );
   }
 
   /**
@@ -102,8 +84,8 @@ class AbstractMethodBuilder {
    * @param  {function} handler  - The callback used when a message is received for this service
    * @return {void}
    */
-  buildHandler (protocol, handler) {
-    protocol.prototype[this.handlerName] = handler
+  buildHandler(protocol: function, handler: function): void {
+    protocol.prototype[this.handlerName] = handler;
   }
 
   /**
@@ -112,9 +94,15 @@ class AbstractMethodBuilder {
    * @param  {Object} beforeHooks - The hooks executed before a message is sent/received
    * @return {void}
    */
-  buildBeforeHooks (protocol, beforeHooks) {
-    if (beforeHooks.send.length > 0) { protocol.prototype[this.beforeSendName] = reduceHooks(beforeHooks.send) }
-    if (beforeHooks.receive.length > 0) { protocol.prototype[this.beforeReceiveName] = reduceHooks(beforeHooks.receive) }
+  buildBeforeHooks(protocol: function, beforeHooks: object): void {
+    if (beforeHooks.send.length > 0) {
+      protocol.prototype[this.beforeSendName] = reduceHooks(beforeHooks.send);
+    }
+    if (beforeHooks.receive.length > 0) {
+      protocol.prototype[this.beforeReceiveName] = reduceHooks(
+        beforeHooks.receive,
+      );
+    }
   }
 
   /**
@@ -123,10 +111,16 @@ class AbstractMethodBuilder {
    * @param  {Object} afterHooks - The hooks executed after a message is sent/received
    * @return {void}
    */
-  buildAfterHooks (protocol, afterHooks) {
-    if (afterHooks.send.length > 0) { protocol.prototype[this.afterSendName] = reduceHooks(afterHooks.send) }
-    if (afterHooks.receive.length > 0) { protocol.prototype[this.afterReceiveName] = reduceHooks(afterHooks.receive) }
+  buildAfterHooks(protocol: function, afterHooks: object): void {
+    if (afterHooks.send.length > 0) {
+      protocol.prototype[this.afterSendName] = reduceHooks(afterHooks.send);
+    }
+    if (afterHooks.receive.length > 0) {
+      protocol.prototype[this.afterReceiveName] = reduceHooks(
+        afterHooks.receive,
+      );
+    }
   }
 }
 
-module.exports = AbstractMethodBuilder
+export default AbstractMethodBuilder;

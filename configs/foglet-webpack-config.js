@@ -1,28 +1,28 @@
-module.exports = {
-  mode: 'development',
-  entry: './foglet-core.js',
+export default {
+  mode: "development",
+  entry: "./foglet-core.js",
   output: {
-    'path': require('path').resolve(process.cwd(), 'dist'),
-    'filename': 'foglet.bundle.js',
-    'library': 'foglet',
-    'libraryTarget': 'umd',
-    'umdNamedDefine': true
+    path: require("path").resolve(process.cwd(), "dist"),
+    filename: "foglet.bundle.js",
+    library: "foglet",
+    libraryTarget: "umd",
+    umdNamedDefine: true,
   },
   module: {
     rules: [
       {
         test: /\.js$/,
         exclude: () => {
-          return true
+          return true;
         },
         use: {
-          loader: 'babel-loader',
+          loader: "babel-loader",
           options: {
-            presets: [ 'env' ]
-          }
-        }
-      }
-    ]
+            presets: ["env"],
+          },
+        },
+      },
+    ],
   },
-  devtool: 'source-map'
-}
+  devtool: "source-map",
+};

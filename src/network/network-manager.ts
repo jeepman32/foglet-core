@@ -1,41 +1,39 @@
-/* eslint new-cap: 0 */
-/*
-MIT License
+import EventEmitter from "events";
+import merge from "lodash.merge";
 
-Copyright (c) 2016-2017 Grall Arnaud
+import Network from "./network";
+import SprayAdapter from "./rps/sprayAdapter";
+import CyclonAdapter from "./rps/cyclon-adapter";
+import AbstractNetwork from "./abstract/abstract-network";
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+type Options = {
+  rps: {
+    type: string;
+    options: {
+      // options will be passed to all components of the rps
+      protocol: string;
+    };
+  };
+  overlays: never[];
+} & {
+  rps: {
+    type: string;
+    options: {
+      protocol: string;
+      webrtc: object;
+      timeout: number;
+      delta: number;
+      signaling: { address: string; room: string };
+    };
+  };
+  overlay: { options: object; overlays: OverlayConfig[] };
+};
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-*/
-'use strict'
-
-const EventEmitter = require('events')
-
-// lodash utils
-const lmerge = require('lodash.merge')
-
-// Networks
-const Network = require('./network.js')
-const SprayAdapter = require('./rps/sprayAdapter')
-const CyclonAdapter = require('./rps/cyclon-adapter')
-
-// debug
-const debug = (require('debug'))('foglet-core:network-manager')
+interface RPSOptions {
+  protocol: string;
+  signaling: { address: string; room: string };
+  class: AbstractNetwork;
+}
 
 /**
  * A configuration object used to build an overlay
@@ -64,12 +62,16 @@ const debug = (require('debug'))('foglet-core:network-manager')
  * @author Grall Arnaud (folkvir)
  */
 class NetworkManager extends EventEmitter {
+  private options: Options;
+  private rps: Network;
+  private overlays: Map<any, any>;
+
   /**
    * Constructor
    * @param  {Object} options - Options used to build the networks
    * @param {Object} options.rps - Options used to configure the Random Peer Sampling (RPS) network
    * @param {string} options.rps.type - The type of RPS (`spray-wrtc` for Spray or `fcn-wrtc` for a fully connected network over WebRTC)
-   * @param {Object} options.rps.options - Options by the type of RPS choosed
+   * @param {Object} options.rps.options - Options by the type of RPS choosen
    * @param {string} options.rps.options.protocol - Name of the protocol run by the application
    * @param {Object} options.rps.options.webrtc - WebRTC dedicated options (see WebRTC docs for more details)
    * @param {number} options.rps.options.timeout - RPS timeout before definitively close a WebRTC connection
@@ -81,24 +83,40 @@ class NetworkManager extends EventEmitter {
    * @param {Object} options.overlay.options - Options propagated to all overlays, same as the options field used to configure the RPS.
    * @param {OverlayConfig[]} options.overlay.overlays - Set of config objects used to build the overlays
    */
-  constructor (options) {
-    super()
-    this._options = lmerge({
-      rps: {
-        type: 'spray-wrtc',
-        options: { // options will be passed to all components of the rps
-          protocol: 'spray-wrtc-communication'
-        }
+  constructor(options: {
+    rps: {
+      type: string;
+      options: {
+        protocol: string;
+        webrtc: object;
+        timeout: number;
+        delta: number;
+        signaling: { address: string; room: string };
+      };
+    };
+    overlay: { options: object; overlays: OverlayConfig[] };
+  }) {
+    super();
+    this.options = merge(
+      {
+        rps: {
+          type: "spray-wrtc",
+          options: {
+            // options will be passed to all components of the rps
+            protocol: "spray-wrtc-communication",
+          },
+        },
+        overlays: [],
       },
-      overlays: []
-    }, options)
-    this._rps = this._buildRPS(this._options.rps.type, this._options.rps.options)
+      options,
+    );
+    this.rps = this.buildRPS(this.options.rps.type, this.options.rps.options);
 
     // build overlay(s)
-    this._overlays = new Map()
-    this._buildOverlays(this._options.overlays)
+    this.overlays = new Map();
+    this.buildOverlays(this.options.overlays);
 
-    debug('Networks (Rps and overlays) initialized.')
+    console.debug("Networks (Rps and overlays) initialized.");
   }
 
   /**
@@ -107,9 +125,8 @@ class NetworkManager extends EventEmitter {
    * @param  {string} [name=null] - (optional) Name of the overlay to get. Default to the RPS.
    * @return {Network} Return the selected overlay/rps.
    */
-  overlay (name = null) {
-    if (name === null) { return this._rps }
-    return this._overlays.get(name)
+  overlay(name?: string): Network {
+    return !name ? this.rps : this.overlays.get(name);
   }
 
   /**
@@ -120,9 +137,12 @@ class NetworkManager extends EventEmitter {
    * @param  {Number} [priority=0] - (optional) The middleware priority
    * @return {void}
    */
-  registerMiddleware (middleware, priority = 0) {
-    this._rps.use(middleware, priority)
-    this._overlays.forEach(overlay => overlay.use(middleware, priority))
+  registerMiddleware(
+    middleware: { in: function; out: function },
+    priority: number = 0,
+  ): void {
+    this.rps.use(middleware, priority);
+    this.overlays.forEach((overlay) => overlay.use(middleware, priority));
   }
 
   /**
@@ -136,50 +156,56 @@ class NetworkManager extends EventEmitter {
    * @param  {string} options.signaling.room - Name of the room in which the application run
    * @return {Network} The constructed RPS
    */
-  _buildRPS (type, options) {
-    const rpsClass = this._chooseRps(type, options)
-    const rps = new rpsClass(options)
-    return new Network(rps, options.signaling, options.protocol)
+  private buildRPS(
+    type: "cyclon" | "spray-wrtc" | "custom",
+    options: RPSOptions,
+  ): Network {
+    const rpsClass = this.chooseRps(type, options);
+    const rps = new rpsClass(options);
+    return new Network(rps, options.signaling, options.protocol);
   }
 
   /**
    * Get a RPS constructor given its type in string format
    * @private
-   * @deprecated As only Spray is available as RPS, there is only one possible choice...
    * @param {string} type - RPS type
    * @param {Object} options - Options to pass to the RPS
    * @return {function} The RPS constructor
    */
-  _chooseRps (type, options) {
-    let rps = null
+  private chooseRps(type: "cyclon"): CyclonAdapter;
+  private chooseRps(type: "spray-wrtc"): SprayAdapter;
+  private chooseRps<T extends RPSOptions>(
+    type: "custom",
+    options: T,
+  ): T["class"];
+  private chooseRps(
+    type: "cyclon" | "spray-wrtc" | "custom",
+    options?: RPSOptions | undefined,
+  ) {
     switch (type) {
-      case 'spray-wrtc':
-        rps = SprayAdapter
-        break
-      case 'cyclon':
-        rps = CyclonAdapter
-        break
-      case 'custom':
-        rps = options.class
-        break
+      case "cyclon":
+        return CyclonAdapter;
+      case "custom":
+        // Force type annotation as typescript cannot infer that options, in custom type, will be populated.
+        return (options as RPSOptions).class;
+      case "spray-wrtc":
       default:
-        rps = SprayAdapter
-        break
+        return SprayAdapter;
     }
-    return rps
   }
 
   /**
    * Construct all overlays
    * @private
-   * @param  {OverlayConfig[]} overlays - Set of overlay config objetcs
+   * @param  {OverlayConfig[]} overlays - Set of overlay config objects
    * @return {void}
    */
-  _buildOverlays (overlays) {
-    if (overlays.length === 0) debug('No overlays added, only the base RPS is available')
-    overlays.forEach(config => {
-      this._buildOverlay(config)
-    })
+  private buildOverlays(overlays: OverlayConfig[]): void {
+    if (overlays.length === 0)
+      console.debug("No overlays added, only the base RPS is available");
+    overlays.forEach((config) => {
+      this._buildOverlay(config);
+    });
   }
 
   /**
@@ -187,21 +213,44 @@ class NetworkManager extends EventEmitter {
    * Build and add an overlay
    * @private
    * @throws {SyntaxError} Overlay configuration object must be a valid
-   * @throws {Error} An overlay with the same name has laready been registered
+   * @throws {Error} An overlay with the same name has already been registered
    * @param {OverlayConfig} overlayConfig - Overlay configuration object
    * @return {void}
    */
-  _buildOverlay (overlayConfig) {
-    if (typeof overlayConfig !== 'object' || !('name' in overlayConfig) || !('class' in overlayConfig)) { throw new SyntaxError('An overlay is a configuration object {name: [string], class: [function], options: [Object]}') }
-    const options = overlayConfig.options
-    if (!('protocol' in options)) { throw new SyntaxError('An overlay configuration requires a protocol name, e;g. { protocol: [string] }') }
+  _buildOverlay(overlayConfig: OverlayConfig): void {
+    if (
+      typeof overlayConfig !== "object" ||
+      !("name" in overlayConfig) ||
+      !("class" in overlayConfig)
+    ) {
+      throw new SyntaxError(
+        "An overlay is a configuration object {name: [string], class: [function], options: [Object]}",
+      );
+    }
+    const options = overlayConfig.options;
+    if (!("protocol" in options)) {
+      throw new SyntaxError(
+        "An overlay configuration requires a protocol name, e;g. { protocol: [string] }",
+      );
+    }
 
-    if (!('signaling' in options)) { debug(`[WARNING] no signaling server given for overlay "${overlayConfig.name}"! Only connections from inside the same app will be allowed!`) }
+    if (!("signaling" in options)) {
+      console.debug(
+        `[WARNING] no signaling server given for overlay "${overlayConfig.name}"! Only connections from inside the same app will be allowed!`,
+      );
+    }
 
-    if (this._overlays.has(overlayConfig.name)) { throw new Error(`An overlay with the name "${overlayConfig.name}" has already been registered!`) }
-    const overlay = new overlayConfig.class(this, options)
-    this._overlays.set(overlayConfig.name, new Network(overlay, options.signaling, options.protocol))
+    if (this.overlays.has(overlayConfig.name)) {
+      throw new Error(
+        `An overlay with the name "${overlayConfig.name}" has already been registered!`,
+      );
+    }
+    const overlay = new overlayConfig.class(this, options);
+    this.overlays.set(
+      overlayConfig.name,
+      new Network(overlay, options.signaling, options.protocol),
+    );
   }
 }
 
-module.exports = NetworkManager
+export default NetworkManager;
